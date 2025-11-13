@@ -1,0 +1,13 @@
+# Flutter/Dart/Pub
+.dart_tool/
+.packages
+.pub/
+build/
+ios/Flutter/.last_build_id
+.Android/
+.idea/
+.gradle/
+pubspec.lock
+
+# Visual Studio Code
+.vscode/
