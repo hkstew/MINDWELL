@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import 'home_page.dart'; // ✅ ใช้ EmotionType
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:video_player/video_player.dart';
 
 class GoodReasonPage2 extends StatefulWidget {
   const GoodReasonPage2({
     super.key,
     required this.firstAsset,
     required this.secondAsset,
-    required this.highlightWord, // เช่น "อารมณ์ดี" / "ดีใจ" / "ผ่อนคลาย"
+    required this.highlightWord,
     this.backgroundColor = const Color(0xFF212121),
     this.emojiSize = 190,
     this.togglePeriod = const Duration(milliseconds: 1900),
@@ -33,16 +34,53 @@ class GoodReasonPage2 extends StatefulWidget {
 class _GoodReasonPage2State extends State<GoodReasonPage2> {
   bool _second = false;
   Timer? _timer;
+
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+
+  late VideoPlayerController _videoController;
 
   @override
   void initState() {
     super.initState();
+    initializeDateFormatting('th_TH');
+
+    // toggle emoji
     _timer = Timer.periodic(widget.togglePeriod, (_) {
       if (!mounted) return;
       setState(() => _second = !_second);
     });
+
+    _initVideo();
+  }
+
+  // -----------------------------
+  //  LOAD VIDEO BY EMOTION KEYWORD
+  // -----------------------------
+  void _initVideo() {
+    String file = "assets/videos/good3.mp4"; // default
+
+    switch (widget.highlightWord) {
+      case "ดีใจ":
+        file = "assets/videos/good1.mp4";
+        break;
+      case "ผ่อนคลาย":
+        file = "assets/videos/good2.mp4";
+        break;
+      case "อารมณ์ดี":
+        file = "assets/videos/good3.mp4";
+        break;
+    }
+
+    _videoController = VideoPlayerController.asset(file)
+      ..initialize().then((_) {
+        _videoController.setLooping(true);
+        _videoController.play();
+        if (mounted) setState(() {});
+      });
   }
 
   @override
@@ -50,40 +88,78 @@ class _GoodReasonPage2State extends State<GoodReasonPage2> {
     _timer?.cancel();
     _controller.dispose();
     _focusNode.dispose();
+    _videoController.dispose();
     super.dispose();
   }
 
-  /// ✅ แก้ไขให้ปลอดภัยจาก !_debugLocked
+  // ---------------------------
+  // PICK DATE
+  // ---------------------------
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2023),
+      lastDate: DateTime(2035),
+      locale: const Locale('th', 'TH'),
+    );
+
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  // ---------------------------
+  // PICK TIME
+  // ---------------------------
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+    );
+    if (picked != null) setState(() => _selectedTime = picked);
+  }
+
+  String _formatDate(DateTime d) =>
+      DateFormat("d MMM yy", "th_TH").format(d);
+
+  String _formatTime(TimeOfDay t) {
+    final dt = DateTime(2024, 1, 1, t.hour, t.minute);
+    return DateFormat("HH:mm", "th_TH").format(dt);
+  }
+
+  // ---------------------------
+  // SUBMIT
+  // ---------------------------
   Future<void> _submit() async {
     final text = _controller.text.trim();
     _focusNode.unfocus();
 
-    if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกข้อความก่อนส่ง')),
-      );
-      return;
-    }
+    final finalDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
 
-    // ✅ ใช้ addPostFrameCallback เพื่อให้แน่ใจว่า Navigator ไม่ถูกล็อก
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      Navigator.pop(context, {
-        'text': text,
-        'subEmotion': widget.highlightWord,
-      });
+    Navigator.pop(context, {
+      'text': text,
+      'subEmotion': widget.highlightWord,
+      'dateTime': finalDateTime,
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final arrowStroke = Colors.black.withOpacity(0.7);
+
     return Scaffold(
       backgroundColor: widget.backgroundColor,
       body: SafeArea(
         child: Stack(
           children: [
-            // ปุ่ม Back
+            // -------------------------
+            // ปุ่ม BACK
+            // -------------------------
             Positioned(
               top: 8,
               left: 8,
@@ -103,36 +179,32 @@ class _GoodReasonPage2State extends State<GoodReasonPage2> {
                       ),
                     ],
                   ),
-                  alignment: Alignment.center,
-                  child: Image.asset(
-                    'assets/icons/back_arrow.png',
-                    width: 22,
-                    height: 22,
-                    fit: BoxFit.contain,
-                  ),
+                  child: Image.asset('assets/icons/back_arrow.png', width: 22),
                 ),
               ),
             ),
 
-            // เนื้อหา
+            // -------------------------
+            // CONTENT
+            // -------------------------
             Align(
               alignment: Alignment.topCenter,
               child: Padding(
                 padding: const EdgeInsets.only(top: 28, left: 20, right: 20),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // อิโมจิใหญ่ (สลับอัตโนมัติ)
+                    // EMOJI
                     AnimatedSwitcher(
                       duration: widget.switchDuration,
-                      switchInCurve: Curves.easeOutQuad,
-                      switchOutCurve: Curves.easeInQuad,
-                      transitionBuilder: (child, animation) {
-                        final scale = Tween<double>(begin: 0.92, end: 1.0)
-                            .animate(CurvedAnimation(
-                                parent: animation, curve: Curves.easeOutBack));
+                      transitionBuilder: (child, anim) {
+                        final scale = Tween(begin: 0.92, end: 1.0).animate(
+                          CurvedAnimation(
+                            parent: anim,
+                            curve: Curves.easeOutBack,
+                          ),
+                        );
                         return FadeTransition(
-                          opacity: animation,
+                          opacity: anim,
                           child: ScaleTransition(scale: scale, child: child),
                         );
                       },
@@ -140,22 +212,18 @@ class _GoodReasonPage2State extends State<GoodReasonPage2> {
                         _second ? widget.secondAsset : widget.firstAsset,
                         key: ValueKey(_second),
                         width: widget.emojiSize,
-                        height: widget.emojiSize,
-                        fit: BoxFit.contain,
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // ข้อความหัวเรื่อง
                     _PromptLine(highlight: widget.highlightWord),
 
                     const SizedBox(height: 14),
 
-                    // กล่องพิมพ์ + ปุ่มลูกศร
+                    // INPUT + ARROW
                     Stack(
                       children: [
-                        // กล่องพิมพ์
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(14),
@@ -176,23 +244,14 @@ class _GoodReasonPage2State extends State<GoodReasonPage2> {
                             maxLines: 6,
                             minLines: 5,
                             style: GoogleFonts.poppins(
-                              color: Colors.black87,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            decoration: InputDecoration(
+                                fontSize: 16, color: Colors.black87),
+                            decoration: const InputDecoration(
                               border: InputBorder.none,
                               hintText: 'พิมพ์ความคิดเห็นของคุณที่นี่...',
-                              hintStyle: GoogleFonts.poppins(
-                                color: Colors.black.withOpacity(0.45),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
                             ),
                           ),
                         ),
 
-                        // ปุ่มลูกศร
                         Positioned(
                           right: -4,
                           bottom: -6,
@@ -202,10 +261,10 @@ class _GoodReasonPage2State extends State<GoodReasonPage2> {
                               width: 64,
                               height: 64,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF7BFF85), // เขียวอ่อน
+                                color: const Color(0xFF7BFF85),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: Colors.black.withOpacity(0.7),
+                                  color: arrowStroke,
                                   width: 4,
                                 ),
                                 boxShadow: [
@@ -226,6 +285,69 @@ class _GoodReasonPage2State extends State<GoodReasonPage2> {
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 26),
+
+                    // DATE + TIME
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: _pickDate,
+                          child: _DateTimeChip(label: _formatDate(_selectedDate)),
+                        ),
+                        const SizedBox(width: 12),
+
+                        GestureDetector(
+                          onTap: _pickTime,
+                          child: _DateTimeChip(
+                              label: "${_formatTime(_selectedTime)} น."),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        GestureDetector(
+                          onTap: () async {
+                            await _pickDate();
+                            await _pickTime();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDADADA),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.calendar_month,
+                              size: 28,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    // -------------------------
+                    // VIDEO SECTION
+                    // -------------------------
+                    if (_videoController.value.isInitialized)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: SizedBox(
+                          height: 150,
+                          width: 150,
+                          child: VideoPlayer(_videoController),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -237,6 +359,43 @@ class _GoodReasonPage2State extends State<GoodReasonPage2> {
   }
 }
 
+// ---------------------------
+// DATE/TIME CHIP UI
+// ---------------------------
+class _DateTimeChip extends StatelessWidget {
+  final String label;
+  const _DateTimeChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDADADA),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------
+// PROMPT TEXT
+// ---------------------------
 class _PromptLine extends StatelessWidget {
   const _PromptLine({required this.highlight});
   final String highlight;
@@ -258,8 +417,7 @@ class _PromptLine extends StatelessWidget {
       textAlign: TextAlign.center,
       text: TextSpan(
         children: [
-          TextSpan(text: 'บอกเราได้มั้ยทำไมคุณถึงรู้สึก', style: base),
-          const TextSpan(text: ' '),
+          TextSpan(text: 'บอกเราได้มั้ยทำไมคุณถึงรู้สึก ', style: base),
           TextSpan(text: highlight, style: hi),
         ],
       ),

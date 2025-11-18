@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:my_new_app/travel_game_page.dart';
 import 'bottom_nav_bar.dart';
-
 import 'how_to_play_page.dart';
 import 'character_select_page.dart';
 
@@ -15,12 +15,10 @@ class TravelPage extends StatefulWidget {
 }
 
 class _TravelPageState extends State<TravelPage> {
-  int coin = 130; // จำนวนเหรียญจำลอง
-
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  String characterImage = 'assets/icons/Cartoon.png'; // ตัวละครเริ่มต้น
+  String characterImage = 'assets/icons/Cartoon.png';
 
   @override
   void initState() {
@@ -45,8 +43,11 @@ class _TravelPageState extends State<TravelPage> {
 
   @override
   Widget build(BuildContext context) {
+    final uid = _auth.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFF212121),
+
       body: SafeArea(
         child: Stack(
           children: [
@@ -58,37 +59,54 @@ class _TravelPageState extends State<TravelPage> {
               ),
             ),
 
-            // 💰 เหรียญ
-            // Positioned(
-            //   top: 20,
-            //   right: 20,
-            //   child: Container(
-            //     padding:
-            //         const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            //     decoration: BoxDecoration(
-            //       color: const Color(0xFF5C3B1E),
-            //       borderRadius: BorderRadius.circular(30),
-            //     ),
-            //     child: Row(
-            //       children: [
-            //         Text(
-            //           '$coin',
-            //           style: GoogleFonts.poppins(
-            //             color: Colors.white,
-            //             fontWeight: FontWeight.w700,
-            //             fontSize: 18,
-            //           ),
-            //         ),
-            //         const SizedBox(width: 4),
-            //         Image.asset(
-            //           'assets/images/coin.png',
-            //           width: 30,
-            //           height: 30,
-            //         ),
-            //       ],
-            //     ),
-            //   ),
-            // ),
+            // ❤️ แสดงจำนวนหัวใจที่เก็บได้ทั้งหมด (มุมขวาบน)
+            if (uid != null)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: _firestore.collection("users").doc(uid).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const SizedBox();
+                    }
+
+                    final data = snapshot.data!.data() as Map<String, dynamic>?;
+
+                    // ⭐ ใช้ totalHearts เป็นค่าของสะสมทั้งหมด
+                    final hearts = data?["totalHearts"] ?? 0;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.45),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.favorite,
+                            color: Colors.redAccent,
+                            size: 26,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            hearts.toString(),
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
 
             // 🧒 ตัวละคร
             Align(
@@ -96,7 +114,7 @@ class _TravelPageState extends State<TravelPage> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 180),
                 child: Image.asset(
-                  characterImage, // ← โหลดตามที่เลือก
+                  characterImage,
                   height: 300,
                   fit: BoxFit.contain,
                 ),
@@ -112,7 +130,9 @@ class _TravelPageState extends State<TravelPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5C3B1E),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 60, vertical: 12),
+                      horizontal: 60,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -120,9 +140,7 @@ class _TravelPageState extends State<TravelPage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const HowToPlayPage(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const TravelGamePage()),
                     );
                   },
                   child: Text(
@@ -146,13 +164,14 @@ class _TravelPageState extends State<TravelPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5C3B1E),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 50, vertical: 12),
+                      horizontal: 50,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
                   onPressed: () async {
-                    // ไปหน้าเลือกตัวละคร
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -160,7 +179,7 @@ class _TravelPageState extends State<TravelPage> {
                       ),
                     );
 
-                    // โหลดใหม่หลังกลับมา
+                    // โหลดใหม่หลังจากเปลี่ยนตัวละคร
                     _loadSelectedCharacter();
                   },
                   child: Text(

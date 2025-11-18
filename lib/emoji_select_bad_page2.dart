@@ -44,10 +44,12 @@ class _EmojiSelectBadPageState extends State<EmojiSelectBadPage2> {
 
   /// ✅ เปิด Reason Page แล้วส่งผลลัพธ์ (Map) กลับไปหน้า Home
   Future<void> _openBadReasonPage(Widget page) async {
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(_badRoute(page));
+    final result = await Navigator.of(
+      context,
+    ).push<Map<String, dynamic>>(_badRoute(page));
 
-    if (result != null && result['text']?.toString().trim().isNotEmpty == true) {
-      Navigator.of(context).pop(result); // ✅ ส่ง Map กลับไปหน้า Home
+    if (result != null) {
+      Navigator.pop(context, result);
     }
   }
 
@@ -122,7 +124,7 @@ class _EmojiSelectBadPageState extends State<EmojiSelectBadPage2> {
                         const BadReasonPage2(
                           firstAsset: 'assets/icons/First_Red.png',
                           secondAsset: 'assets/icons/Sec_Red.png',
-                          highlightWord: 'เศร้า',
+                          highlightWord: 'โกรธ / เครียด',
                         ),
                       ),
                       child: _EmojiAutoToggle(
@@ -149,7 +151,7 @@ class _EmojiSelectBadPageState extends State<EmojiSelectBadPage2> {
                                 const BadReasonPage2(
                                   firstAsset: 'assets/icons/First_Red2.png',
                                   secondAsset: 'assets/icons/Sec_Red2.png',
-                                  highlightWord: 'กังวล',
+                                  highlightWord: 'เศร้า',
                                 ),
                               ),
                               child: _EmojiAutoToggle(
@@ -172,7 +174,7 @@ class _EmojiSelectBadPageState extends State<EmojiSelectBadPage2> {
                                 const BadReasonPage2(
                                   firstAsset: 'assets/icons/First_Red3.png',
                                   secondAsset: 'assets/icons/Sec_Red3.png',
-                                  highlightWord: 'โกรธ / เครียด',
+                                  highlightWord: 'กังวล',
                                 ),
                               ),
                               child: _EmojiAutoToggle(
@@ -227,8 +229,9 @@ class _EmojiAutoToggle extends StatelessWidget {
       switchInCurve: Curves.easeOutQuad,
       switchOutCurve: Curves.easeInQuad,
       transitionBuilder: (child, animation) {
-        final scale = Tween<double>(begin: 0.92, end: 1.0)
-            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack));
+        final scale = Tween<double>(begin: 0.92, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+        );
         return FadeTransition(
           opacity: animation,
           child: ScaleTransition(scale: scale, child: child),
@@ -274,7 +277,10 @@ Route<Map<String, dynamic>> _badRoute(Widget page) {
     transitionDuration: const Duration(milliseconds: 450),
     reverseTransitionDuration: const Duration(milliseconds: 350),
     transitionsBuilder: (_, animation, secondaryAnimation, child) {
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      final fade = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
       final slide = Tween<Offset>(
         begin: const Offset(0.06, 0.02),
         end: Offset.zero,

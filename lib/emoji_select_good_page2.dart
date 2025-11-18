@@ -43,10 +43,12 @@ class _EmojiSelectGoodPageState extends State<EmojiSelectGoodPage2> {
 
   /// ✅ เปิด ReasonPage แล้วส่งผลลัพธ์ (Map) กลับไปหน้า Home
   Future<void> _openGoodReasonPage(Widget page) async {
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(_goodRoute(page));
+    final result = await Navigator.of(
+      context,
+    ).push<Map<String, dynamic>>(_goodRoute(page));
 
-    if (result != null && result['text']?.toString().trim().isNotEmpty == true) {
-      Navigator.of(context).pop(result); // ✅ ส่ง Map กลับไป Home (ไม่แปลงเป็น String)
+    if (result != null) {
+      Navigator.pop(context, result);
     }
   }
 
@@ -215,8 +217,9 @@ class _EmojiAutoToggle extends StatelessWidget {
       switchInCurve: Curves.easeOutQuad,
       switchOutCurve: Curves.easeInQuad,
       transitionBuilder: (child, animation) {
-        final scale = Tween<double>(begin: 0.92, end: 1.0)
-            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack));
+        final scale = Tween<double>(begin: 0.92, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+        );
         return FadeTransition(
           opacity: animation,
           child: ScaleTransition(scale: scale, child: child),
@@ -262,9 +265,14 @@ Route<Map<String, dynamic>> _goodRoute(Widget page) {
     reverseTransitionDuration: const Duration(milliseconds: 350),
     pageBuilder: (_, __, ___) => page,
     transitionsBuilder: (_, animation, secondaryAnimation, child) {
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-      final slide = Tween<Offset>(begin: const Offset(0.06, 0.02), end: Offset.zero)
-          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+      final fade = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
+      final slide = Tween<Offset>(
+        begin: const Offset(0.06, 0.02),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
       return FadeTransition(
         opacity: fade,
         child: SlideTransition(position: slide, child: child),

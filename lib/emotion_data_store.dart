@@ -2,96 +2,100 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
+import 'analyst_page.dart';
+import 'package:home_widget/home_widget.dart';
 
-/// ✅ ระยะเวลาที่ใช้ดูข้อมูล
 enum PeriodType { today, week, month }
 
-/// ✅ โครงสร้างข้อมูล 1 รายการอารมณ์
 class EmotionEntry {
   final String text;
   final EmotionType emotion;
   final String subEmotion;
-  final TimeOfDay time;
-  final DateTime date;
+  final DateTime dateTime;
 
   EmotionEntry({
     required this.text,
     required this.emotion,
     required this.subEmotion,
-    required this.time,
-    required this.date,
+    required this.dateTime,
   });
 
-  /// 🔹 แปลงเป็น Map สำหรับเก็บใน Hive
   Map<String, dynamic> toMap() => {
-        'text': text,
-        'emotion': emotion.index,
-        'subEmotion': subEmotion,
-        'hour': time.hour,
-        'minute': time.minute,
-        'date': date.toIso8601String(),
-      };
+    'text': text,
+    'emotion': emotion.index,
+    'subEmotion': subEmotion,
+    'dateTime': dateTime.toIso8601String(),
+  };
 
-  /// 🔹 แปลงกลับจาก Map เป็น EmotionEntry
   factory EmotionEntry.fromMap(Map<String, dynamic> map) {
     return EmotionEntry(
-      text: map['text'],
+      text: map['text'] ?? "",
       emotion: EmotionType.values[map['emotion']],
-      subEmotion: map['subEmotion'],
-      time: TimeOfDay(hour: map['hour'], minute: map['minute']),
-      date: DateTime.parse(map['date']),
+      subEmotion: map['subEmotion'] ?? "",
+      dateTime: DateTime.parse(map['dateTime']),
     );
   }
 }
 
-/// ✅ ตัวจัดการข้อมูลอารมณ์ส่วนกลาง (Global Shared Store)
 class EmotionDataStore {
   static final EmotionDataStore _instance = EmotionDataStore._internal();
   factory EmotionDataStore() => _instance;
   EmotionDataStore._internal();
 
-  static late Box _box; // กล่อง Hive สำหรับเก็บข้อมูล
-  static String? _userId; // 🧩 แยกตาม uid ของผู้ใช้
+  static late Box _box;
+  static String? _userId;
 
-  /// ✅ เรียกตอนเริ่มแอป (ใน main.dart)
   static Future<void> init() async {
     await Hive.initFlutter();
     final user = FirebaseAuth.instance.currentUser;
     _userId = user?.uid ?? 'guest';
-    _box = await Hive.openBox('emotionBox_$_userId'); // 👈 แยกกล่องตาม uid
+    _box = await Hive.openBox('emotionBox_$_userId');
   }
 
-  /// ✅ เก็บข้อมูลในหน่วยความจำ (ใช้คู่กับ Hive)
   final Map<String, List<EmotionEntry>> _dailyEntries = {};
 
-  /// ✅ แปลงวันที่ให้เป็น key string เช่น "2025-11-09"
   String _dateKey(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-  /// ✅ เพิ่มข้อมูลใหม่
+  Future<void> updateEmotionWidget(
+    String emotionText,
+    String emotionKey,
+  ) async {
+    await HomeWidget.saveWidgetData(
+      'today_emotion',
+      emotionText,
+    ); // เช่น "วันนี้คุณรู้สึก เหนื่อย"
+    await HomeWidget.saveWidgetData(
+      'today_emotion_key',
+      emotionKey,
+    ); // เช่น "yellow3"
+    await HomeWidget.updateWidget(
+      name: 'EmotionWidgetProvider',
+      iOSName: 'EmotionWidget', // ไม่ใช้ก็ได้บน Android แต่ใส่ได้
+    );
+  }
+
   Future<void> addEntry({
     required String text,
     required EmotionType emotion,
     required String subEmotion,
+    required DateTime dateTime,
   }) async {
-    final now = DateTime.now();
-    final key = _dateKey(now);
+    final key = _dateKey(dateTime);
+
     final entry = EmotionEntry(
       text: text,
       emotion: emotion,
       subEmotion: subEmotion,
-      time: TimeOfDay.now(),
-      date: now,
+      dateTime: dateTime,
     );
 
     _dailyEntries.putIfAbsent(key, () => []);
     _dailyEntries[key]!.insert(0, entry);
 
-    final storedList = _dailyEntries[key]!.map((e) => e.toMap()).toList();
-    await _box.put(key, storedList);
+    await _box.put(key, _dailyEntries[key]!.map((e) => e.toMap()).toList());
   }
 
-  /// ✅ โหลดข้อมูลจาก Hive (ทุกครั้งที่เปิดแอป)
   void loadAllData() {
     _dailyEntries.clear();
     for (var key in _box.keys) {
@@ -104,10 +108,10 @@ class EmotionDataStore {
     }
   }
 
-  /// ✅ ดึงข้อมูลของ “วันนี้”
   List<EmotionEntry> getEntriesForToday() {
     final key = _dateKey(DateTime.now());
     final stored = _box.get(key);
+
     if (stored != null && stored is List) {
       _dailyEntries[key] = stored
           .map((m) => EmotionEntry.fromMap(Map<String, dynamic>.from(m)))
@@ -116,13 +120,13 @@ class EmotionDataStore {
     return _dailyEntries[key] ?? [];
   }
 
-  /// ✅ ดึงข้อมูลของ “สัปดาห์นี้”
   List<EmotionEntry> getEntriesForWeek() {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 7));
 
     loadAllData();
+
     return _dailyEntries.entries
         .where((e) {
           final date = DateTime.parse(e.key);
@@ -133,10 +137,10 @@ class EmotionDataStore {
         .toList();
   }
 
-  /// ✅ ดึงข้อมูลของ “เดือนนี้”
   List<EmotionEntry> getEntriesForMonth() {
     final now = DateTime.now();
     loadAllData();
+
     return _dailyEntries.entries
         .where((e) {
           final date = DateTime.parse(e.key);
@@ -146,9 +150,9 @@ class EmotionDataStore {
         .toList();
   }
 
-  /// ✅ คืนค่าสถิติรวมแต่ละอารมณ์ตามช่วงเวลา
   Map<EmotionType, int> getEmotionCountsForPeriod(PeriodType type) {
     List<EmotionEntry> entries = [];
+
     switch (type) {
       case PeriodType.today:
         entries = getEntriesForToday();
@@ -166,45 +170,118 @@ class EmotionDataStore {
       EmotionType.neutral: 0,
       EmotionType.bad: 0,
     };
+
     for (final e in entries) {
       counts[e.emotion] = (counts[e.emotion] ?? 0) + 1;
     }
     return counts;
   }
 
-  /// ✅ คืนค่าอารมณ์หลัก (dominant) ของช่วงเวลา
   EmotionType? getDominantEmotionForPeriod(PeriodType type) {
     final counts = getEmotionCountsForPeriod(type);
     if (counts.values.every((v) => v == 0)) return null;
     return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 
-  /// ✅ เคลียร์ข้อมูลของผู้ใช้คนปัจจุบันเท่านั้น
   Future<void> clearAll() async {
     _dailyEntries.clear();
     await _box.clear();
   }
 
-  /// ✅ ดึงข้อมูลทั้งหมด (ทุกวัน)
-  List<Map<String, dynamic>> getAllEntries() {
+  /// ✔️ ดึงรายการทั้งหมด (ใช้หน้า Home)
+  List<EmotionEntry> getAllEntries() {
     loadAllData();
-    final allEntries = _dailyEntries.values.expand((list) => list).toList();
-
-    return allEntries.map((e) {
-      return {
-        'text': e.text,
-        'emotion': e.emotion,
-        'subEmotion': e.subEmotion,
-        'time': e.time,
-        'date': e.date,
-      };
-    }).toList();
+    return _dailyEntries.values.expand((list) => list).toList();
   }
 
-  /// ✅ เมื่อผู้ใช้ใหม่ล็อกอิน → เปลี่ยนกล่อง Hive เป็นของ user นั้น
+  /// ⭐⭐⭐ ฟังก์ชันอัปเดตรายการ (แก้ไขข้อความ + เวลา) ⭐⭐⭐
+  Future<void> updateEntry({
+    required EmotionEntry oldEntry,
+    required EmotionEntry newEntry,
+  }) async {
+    final oldKey = _dateKey(oldEntry.dateTime);
+    final newKey = _dateKey(newEntry.dateTime);
+
+    // โหลดรายการในวันเก่า
+    final oldStored = _box.get(oldKey);
+
+    if (oldStored == null || oldStored is! List) return;
+
+    List<EmotionEntry> oldList = oldStored
+        .map((m) => EmotionEntry.fromMap(Map<String, dynamic>.from(m)))
+        .toList();
+
+    // ลบรายการเดิม
+    oldList.removeWhere((e) => e.dateTime == oldEntry.dateTime);
+
+    // ถ้าวันเก่าไม่มีรายการแล้ว → ลบทั้ง key
+    if (oldList.isEmpty) {
+      await _box.delete(oldKey);
+      _dailyEntries.remove(oldKey);
+    } else {
+      await _box.put(oldKey, oldList.map((e) => e.toMap()).toList());
+      _dailyEntries[oldKey] = oldList;
+    }
+
+    // เพิ่มรายการใหม่ในวันใหม่
+    final newStored = _box.get(newKey);
+    List<EmotionEntry> newList = [];
+
+    if (newStored != null && newStored is List) {
+      newList = newStored
+          .map((m) => EmotionEntry.fromMap(Map<String, dynamic>.from(m)))
+          .toList();
+    }
+
+    newList.insert(0, newEntry);
+
+    await _box.put(newKey, newList.map((e) => e.toMap()).toList());
+    _dailyEntries[newKey] = newList;
+  }
+
   static Future<void> switchUserBox() async {
     final user = FirebaseAuth.instance.currentUser;
     _userId = user?.uid ?? 'guest';
     _box = await Hive.openBox('emotionBox_$_userId');
+  }
+
+  /// ⭐⭐⭐ ฟังก์ชันลบรายการ ⭐⭐⭐
+  Future<void> deleteEntry(EmotionEntry entry) async {
+    final key = _dateKey(entry.dateTime);
+
+    final stored = _box.get(key);
+    if (stored == null || stored is! List) return;
+
+    // แปลงข้อมูลกลับเป็น EmotionEntry
+    List<EmotionEntry> items = stored
+        .map<EmotionEntry>(
+          (m) => EmotionEntry.fromMap(Map<String, dynamic>.from(m)),
+        )
+        .toList();
+
+    // ลบรายการที่ dateTime ตรงกัน
+    items.removeWhere((e) => e.dateTime == entry.dateTime);
+
+    // ถ้าวันนั้นไม่มีข้อมูล → ลบทั้ง key
+    if (items.isEmpty) {
+      await _box.delete(key);
+      _dailyEntries.remove(key);
+    } else {
+      await _box.put(key, items.map((e) => e.toMap()).toList());
+      _dailyEntries[key] = items;
+    }
+  }
+
+  List<EmotionEntry> getEntriesForPeriod(PeriodType type) {
+    switch (type) {
+      case PeriodType.today:
+        return getEntriesForToday();
+
+      case PeriodType.week:
+        return getEntriesForWeek();
+
+      case PeriodType.month:
+        return getEntriesForMonth();
+    }
   }
 }

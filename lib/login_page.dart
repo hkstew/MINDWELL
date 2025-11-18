@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:my_new_app/forgot_password_page.dart';
 import 'register_page.dart';
 import 'emotion_data_store.dart'; // ✅ เพิ่มเพื่อใช้ switchUserBox()
 
@@ -87,192 +88,206 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 🔹 โลโก้ + LOGIN
-            SizedBox(
-              height: 305,
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Positioned(
-                    top: 0,
-                    child: Image.asset(
-                      "assets/logos/mindwell_logo.png",
-                      height: 260,
+      // ✅ ครอบด้วย SafeArea
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 24), // กันติดขอบล่างเกินไป
+          child: Column(
+            children: [
+              // 🔹 โลโก้ + LOGIN
+              SizedBox(
+                height: 305,
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Positioned(
+                      top: 0,
+                      child: Image.asset(
+                        "assets/logos/mindwell_logo.png",
+                        height: 260,
+                      ),
                     ),
+                    Positioned(
+                      top: 190,
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "LOG",
+                              style: GoogleFonts.poppins(
+                                fontSize: 90,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF72A6B5),
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    offset: const Offset(0, 5),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextSpan(
+                              text: "IN",
+                              style: GoogleFonts.poppins(
+                                fontSize: 90,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey[600],
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    offset: const Offset(0, 5),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              // ช่องกรอกอีเมล
+              _buildInputField(emailController, "กรอกอีเมล"),
+              const SizedBox(height: 20),
+
+              // ช่องกรอกรหัสผ่าน + toggle 👁️
+              _buildInputField(
+                passwordController,
+                "กรอกรหัส",
+                obscure: _obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   ),
-                  Positioned(
-                    top: 190,
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: "LOG",
-                            style: GoogleFonts.poppins(
-                              fontSize: 90,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF72A6B5),
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  offset: const Offset(0, 5),
-                                  blurRadius: 6,
-                                ),
-                              ],
-                            ),
-                          ),
-                          TextSpan(
-                            text: "IN",
-                            style: GoogleFonts.poppins(
-                              fontSize: 90,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.grey[600],
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  offset: const Offset(0, 5),
-                                  blurRadius: 6,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+
+              // ✅ ข้อความ error
+              if (loginError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 40),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      loginError!,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.red,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 5),
-
-            // ช่องกรอกอีเมล
-            _buildInputField(emailController, "กรอกอีเมล"),
-            const SizedBox(height: 20),
-
-            // ช่องกรอกรหัสผ่าน + toggle 👁️
-            _buildInputField(
-              passwordController,
-              "กรอกรหัส",
-              obscure: _obscurePassword,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
                 ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
 
-            // ✅ ข้อความ error
-            if (loginError != null)
+              const SizedBox(height: 10),
+
+              // ลืมรหัสผ่าน
               Padding(
-                padding: const EdgeInsets.only(top: 8, left: 40),
+                padding: const EdgeInsets.only(right: 50),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordPage(),
+                      ),
+                    );
+                  },
                 child: Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.centerRight,
                   child: Text(
-                    loginError!,
+                    "ลืมรหัสรึป่าว?",
                     style: GoogleFonts.poppins(
                       fontSize: 14,
-                      color: Colors.red,
-                      fontWeight: FontWeight.w500,
+                      color: Colors.blue,
                     ),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 10),
-
-            // ลืมรหัสผ่าน
-            Padding(
-              padding: const EdgeInsets.only(right: 50),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  "ลืมรหัสรึป่าว?",
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.blue,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // ปุ่มเข้าสู่ระบบ
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF90DAF4),
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
+              // ปุ่มเข้าสู่ระบบ
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF90DAF4),
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      elevation: 6,
+                      shadowColor: Colors.black.withOpacity(1),
                     ),
-                    elevation: 6,
-                    shadowColor: Colors.black.withOpacity(1),
+                    child: Text(
+                      "เข้าสู่ระบบ",
+                      style: GoogleFonts.poppins(
+                        fontSize: 35,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Divider
+              Text(
+                "หรือเข้าสู่ระบบด้วย",
+                style: GoogleFonts.poppins(fontSize: 15),
+              ),
+              const SizedBox(height: 6),
+
+              // Google Sign-In
+              GestureDetector(
+                onTap: _signInWithGoogle,
+                child: Image.asset(
+                  "assets/icons/google_logo.png",
+                  height: 45,
+                ),
+              ),
+
+              const SizedBox(height: 170),
+
+              // ลิงก์สมัครสมาชิก
+              Padding(
+                padding: const EdgeInsets.only(bottom: 25),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterPage(),
+                      ),
+                    );
+                  },
                   child: Text(
-                    "เข้าสู่ระบบ",
+                    "คุณยังไม่มีบัญชีใช่ไหม?",
                     style: GoogleFonts.poppins(
-                      fontSize: 35,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w600,
+                      color: const Color.fromARGB(255, 97, 205, 255),
                     ),
                   ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Divider
-            Text(
-              "หรือเข้าสู่ระบบด้วย",
-              style: GoogleFonts.poppins(fontSize: 15),
-            ),
-            const SizedBox(height: 6),
-
-            // Google Sign-In
-            GestureDetector(
-              onTap: _signInWithGoogle,
-              child: Image.asset(
-                "assets/icons/google_logo.png",
-                height: 45,
-              ),
-            ),
-
-            const SizedBox(height: 170),
-
-            // ลิงก์สมัครสมาชิก
-            Padding(
-              padding: const EdgeInsets.only(bottom: 25),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RegisterPage(),
-                    ),
-                  );
-                },
-                child: Text(
-                  "คุณยังไม่มีบัญชีใช่ไหม?",
-                  style: GoogleFonts.poppins(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w600,
-                    color: const Color.fromARGB(255, 97, 205, 255),
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

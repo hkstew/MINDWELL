@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
 
 class CreatePostPage extends StatefulWidget {
   final String anonymousTag;
@@ -26,69 +24,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // ✅ ใส่ API key ของ Perspective API ที่นี่
-  static const String PERSPECTIVE_API_KEY = "AIzaSyDKplKpQJ3yrwJMTsyjDqksaD1WiXxdYpk";
-
-  Future<bool> _checkProfanity(String text) async {
-    try {
-      final url = Uri.parse(
-          'https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=$PERSPECTIVE_API_KEY');
-
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "comment": {"text": text},
-          "languages": ["th", "en"],
-          "requestedAttributes": {
-            "TOXICITY": {},
-            "INSULT": {},
-            "PROFANITY": {},
-            "THREAT": {},
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final double toxicity =
-            (data['attributeScores']?['TOXICITY']?['summaryScore']?['value'] ??
-                0.0);
-        final double insult =
-            (data['attributeScores']?['INSULT']?['summaryScore']?['value'] ??
-                0.0);
-        final double profanity =
-            (data['attributeScores']?['PROFANITY']?['summaryScore']?['value'] ??
-                0.0);
-        final double threat =
-            (data['attributeScores']?['THREAT']?['summaryScore']?['value'] ??
-                0.0);
-
-        // ถ้ามีอย่างใดอย่างหนึ่งสูงเกิน 0.7 ถือว่าไม่เหมาะสม
-        if (toxicity > 0.7 || insult > 0.7 || profanity > 0.7 || threat > 0.7) {
-          return true;
-        }
-      }
-      return false;
-    } catch (e) {
-      debugPrint("Perspective API Error: $e");
-      return false;
-    }
-  }
-
   Future<void> _submitPost() async {
     final content = _controller.text.trim();
     if (content.isEmpty) return;
 
-    setState(() => _isLoading = true);
-
     // ✅ ตรวจคำไม่เหมาะสม
-    final hasBadWord = await _checkProfanity(content);
-    if (hasBadWord) {
-      setState(() => _isLoading = false);
+    if (WordFilter.hasProfanity(content)) {
       _showWarningDialog();
       return;
     }
+
+    setState(() => _isLoading = true);
 
     final user = _auth.currentUser;
     if (user == null) return;
@@ -115,6 +61,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
           style: GoogleFonts.poppins(
             color: Colors.redAccent,
             fontWeight: FontWeight.w800,
+            fontSize: 22,
           ),
         ),
         content: Text(
@@ -137,6 +84,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF212121),
+      // ----------------------------------------------------------
+      // [แก้ไข] : ตั้งค่าเป็น false เพื่อไม่ให้ปุ่มดันขึ้นมาตามคีย์บอร์ด
+      // ปุ่มกลับจะอยู่ที่เดิม (โดยจะถูกคีย์บอร์ดบังเมื่อพิมพ์)
+      // ----------------------------------------------------------
+      resizeToAvoidBottomInset: false,
+
       body: SafeArea(
         child: Stack(
           children: [
@@ -158,7 +111,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   // 🔹 กล่องโพสต์
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 18,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2C2C2C),
                       borderRadius: BorderRadius.circular(20),
@@ -289,15 +245,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
               ),
             ),
 
-            // 🔹 ปุ่มกลับ
+            // 🔹 ปุ่มกลับ (จะอยู่ที่เดิม ไม่เด้งตามคีย์บอร์ด)
             Positioned(
               bottom: 25,
               right: 25,
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2A2A2A),
                     borderRadius: BorderRadius.circular(40),
@@ -317,5 +275,58 @@ class _CreatePostPageState extends State<CreatePostPage> {
         ),
       ),
     );
+  }
+}
+
+// ======================================================
+//  UTILITY CLASS: สำหรับกรองคำหยาบ
+// ======================================================
+class WordFilter {
+  static final List<String> _badWords = [
+    // --- ภาษาไทย (คำสรรพนาม/คำด่า/คำหยาบคาย) ---
+    'กู', 'มึง', 'ไอ้', 'อี',
+    'เหี้ย', 'เชี่ย', 'เห้', 'เฮี่ย',
+    'สัส', 'สัตว์', 'สัด', 'ไอ้สัส',
+    'ควย', 'กวย', 'จัญไร', 'บรรลัย',
+    'เย็ด', 'แม่เย็ด', 'เย้ด',
+    'หี', 'แตด', 'จิ๋ม', 'โคม',
+    'ห่า', 'ร่าน', 'แรด', 'ดอกทอง', 'ตอแหล',
+    'กะหรี่', 'กระหรี่', 'โสเภณี', 'แมงดา',
+    'หน้าตัวเมีย', 'ชาติชั่ว', 'สารเลว', 'ระยำ',
+    'สวะ', 'ขยะ', 'สถุน', 'ไพร่', 'ขี้ข้า',
+    'พ่อมึง', 'แม่มึง', 'โคตรพ่อ', 'โคตรแม่',
+    'ชั่ว', 'เลว', 'นรก', 'เวร',
+    'โง่', 'ควาย', 'ปัญญาอ่อน', 'สมองหมา', 'ปัญญาควาย',
+    'ลูกกะหรี่', 'ลูกเมียน้อย',
+    'เสือก', 'สะเออะ',
+
+    // --- ภาษาอังกฤษ (Profanity & Insults) ---
+    'fuck', 'fucker', 'fucking', 'motherfucker',
+    'shit', 'bullshit',
+    'bitch', 'son of a bitch',
+    'asshole', 'ass', 'dumbass', 'jackass',
+    'bastard',
+    'cunt', 'pussy', 'twat',
+    'dick', 'cock', 'penis', 'vagina',
+    'slut', 'whore', 'skank',
+    'fag', 'faggot', 'dyke', // (คำเหยียดเพศ)
+    'nigger', 'nigga', 'chink', 'kike', // (คำเหยียดเชื้อชาติ - ควรแบนอย่างยิ่ง)
+    'retard', 'idiot', 'stupid', 'moron', 'imbecile',
+    'damn', 'dammit',
+    'suck', 'sucks',
+    'piss', 'pissed',
+    'crap',
+    'wanker', 'bollocks', 'bugger', 'prick',
+  ];
+
+  static bool hasProfanity(String text) {
+    if (text.isEmpty) return false;
+    final cleanText = text.toLowerCase();
+    for (var word in _badWords) {
+      if (cleanText.contains(word.toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
   }
 }

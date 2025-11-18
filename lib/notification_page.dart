@@ -17,7 +17,7 @@ class NotificationPage extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // ---------------- HEADER ----------------
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
@@ -39,7 +39,7 @@ class NotificationPage extends StatelessWidget {
               ),
             ),
 
-            // ถ้ายังไม่มีผู้ใช้
+            // ---------------- ไม่มีผู้ใช้ ----------------
             if (uid == null)
               Expanded(
                 child: Center(
@@ -54,17 +54,14 @@ class NotificationPage extends StatelessWidget {
                 ),
               )
             else
-              // รายการแจ้งเตือน
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  // เอา orderBy ออกเพื่อเลี่ยง composite index
                   stream: firestore
                       .collection('notifications')
                       .where('ownerId', isEqualTo: uid)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
-                      // แสดง error แทนการค้าง
                       return Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
@@ -84,11 +81,17 @@ class NotificationPage extends StatelessWidget {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    // ดึงและ sort ในฝั่ง client ตาม createdAt (ล่าสุดอยู่บน)
+                    // ---------------- จัดเรียงล่าสุดบน ----------------
                     final docs = snapshot.data!.docs.toList()
                       ..sort((a, b) {
-                        final ta = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-                        final tb = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                        final ta =
+                            (a['createdAt'] as Timestamp?)
+                                ?.millisecondsSinceEpoch ??
+                            0;
+                        final tb =
+                            (b['createdAt'] as Timestamp?)
+                                ?.millisecondsSinceEpoch ??
+                            0;
                         return tb.compareTo(ta);
                       });
 
@@ -105,13 +108,13 @@ class NotificationPage extends StatelessWidget {
                       );
                     }
 
-                    // อัปเดต read=true สำหรับที่ยังไม่อ่าน
+                    // ---------------- Mark as read ----------------
                     final batch = firestore.batch();
                     for (var d in docs) {
-                      final isRead = (d.data() as Map<String, dynamic>)['read'] ?? false;
+                      final isRead =
+                          (d.data() as Map<String, dynamic>)['read'] ?? false;
                       if (!isRead) batch.update(d.reference, {'read': true});
                     }
-                    // ไม่ต้อง await ใน build – fire and forget
                     batch.commit();
 
                     return ListView.builder(
@@ -122,34 +125,39 @@ class NotificationPage extends StatelessWidget {
                         final actor = n['actorTag'] ?? 'anonymous';
                         final content = n['postContent'] ?? '';
                         final type = n['type'] ?? 'like';
-                        final time = (n['createdAt'] as Timestamp?)?.toDate();
-                        final mins = time == null
-                            ? '-'
-                            : '${DateTime.now().difference(time).inMinutes} นาทีที่แล้ว';
+                        final iconName = n['icon'];
+                        final ts = n['createdAt'] as Timestamp?;
+                        final time = ts?.toDate();
 
+                        // ---------------- แก้ไขส่วนคำนวณเวลาตรงนี้ ----------------
+                        String timeDisplay = '-';
+                        if (time != null) {
+                          final diff = DateTime.now().difference(time);
+                          if (diff.inDays > 0) {
+                            timeDisplay = '${diff.inDays} วันที่แล้ว';
+                          } else if (diff.inHours > 0) {
+                            timeDisplay = '${diff.inHours} ชั่วโมงที่แล้ว';
+                          } else {
+                            timeDisplay = '${diff.inMinutes} นาทีที่แล้ว';
+                          }
+                        }
+                        // -----------------------------------------------------
+
+                        // ---------------- ข้อความแจ้งเตือน ----------------
                         String message;
-                        IconData icon;
-                        Color color;
-                        switch (type) {
-                          case 'like':
+
+                        if (type == 'comment') {
+                          message = 'แสดงความคิดเห็นในโพสต์ของคุณ';
+                        } else if (type == 'like') {
+                          if (iconName == 'Sec_Heart') {
                             message = 'กดโอบใจให้โพสต์ของคุณ';
-                            icon = Icons.favorite;
-                            color = Colors.pinkAccent;
-                            break;
-                          case 'love':
+                          } else if (iconName == 'good') {
                             message = 'กดเยี่ยมให้โพสต์ของคุณ';
-                            icon = Icons.favorite_rounded;
-                            color = Colors.redAccent;
-                            break;
-                          case 'comment':
-                            message = 'ได้แสดงความคิดเห็นในโพสต์ของคุณ';
-                            icon = Icons.chat_bubble_outline;
-                            color = Colors.lightBlueAccent;
-                            break;
-                          default:
-                            message = 'มีการตอบสนองในโพสต์ของคุณ';
-                            icon = Icons.notifications_active;
-                            color = Colors.amber;
+                          } else {
+                            message = 'ส่งหัวใจให้โพสต์ของคุณ';
+                          }
+                        } else {
+                          message = 'มีปฏิกิริยากับโพสต์ของคุณ';
                         }
 
                         return Container(
@@ -162,13 +170,19 @@ class NotificationPage extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // ---------------- Avatar + Text + Reaction Icon ----------------
                               Row(
                                 children: [
                                   const CircleAvatar(
                                     backgroundColor: Colors.grey,
-                                    child: Icon(Icons.person, color: Colors.black),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Colors.black,
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
+
+                                  // ข้อความแจ้งเตือน
                                   Expanded(
                                     child: Text(
                                       '$actor $message',
@@ -179,9 +193,20 @@ class NotificationPage extends StatelessWidget {
                                       ),
                                     ),
                                   ),
+
+                                  // ไอคอน reaction/comment
+                                  if (iconName != null)
+                                    Image.asset(
+                                      "assets/icons/$iconName.png",
+                                      width: 0,
+                                      height: 0,
+                                    ),
                                 ],
                               ),
+
                               const SizedBox(height: 6),
+
+                              // ---------------- เนื้อหาโพสต์ ----------------
                               Text(
                                 content,
                                 style: GoogleFonts.poppins(
@@ -189,25 +214,16 @@ class NotificationPage extends StatelessWidget {
                                   fontSize: 12.5,
                                 ),
                               ),
+
                               const SizedBox(height: 10),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(icon, color: color, size: 20),
-                                      const SizedBox(width: 4),
-                                      const Icon(Icons.favorite, color: Colors.red, size: 18),
-                                    ],
-                                  ),
-                                  Text(
-                                    mins,
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white54,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
+
+                              // ---------------- เวลา (เรียกใช้ timeDisplay) ----------------
+                              Text(
+                                timeDisplay, // ใช้ตัวแปรที่คำนวณใหม่
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white54,
+                                  fontSize: 11,
+                                ),
                               ),
                             ],
                           ),

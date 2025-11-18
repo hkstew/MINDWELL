@@ -11,7 +11,8 @@ class EmojiSelectNeutralPage2 extends StatefulWidget {
   const EmojiSelectNeutralPage2({super.key});
 
   @override
-  State<EmojiSelectNeutralPage2> createState() => _EmojiSelectNeutralPageState();
+  State<EmojiSelectNeutralPage2> createState() =>
+      _EmojiSelectNeutralPageState();
 }
 
 class _EmojiSelectNeutralPageState extends State<EmojiSelectNeutralPage2> {
@@ -44,10 +45,12 @@ class _EmojiSelectNeutralPageState extends State<EmojiSelectNeutralPage2> {
 
   /// ✅ เปิด Reason Page แล้วส่งผลลัพธ์ (Map) กลับไปหน้า Home
   Future<void> _openNeutralReasonPage(Widget page) async {
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(_neutralRoute(page));
+    final result = await Navigator.of(
+      context,
+    ).push<Map<String, dynamic>>(_neutralRoute(page));
 
-    if (result != null && result['text']?.toString().trim().isNotEmpty == true) {
-      Navigator.of(context).pop(result); // ✅ ส่ง Map กลับหน้า Home
+    if (result != null) {
+      Navigator.pop(context, result);
     }
   }
 
@@ -120,7 +123,7 @@ class _EmojiSelectNeutralPageState extends State<EmojiSelectNeutralPage2> {
                         const NeutralReasonPage2(
                           firstAsset: 'assets/icons/First_Yellow.png',
                           secondAsset: 'assets/icons/Sec_Yellow.png',
-                          highlightWord: 'เหนื่อย',
+                          highlightWord: 'เบื่อ',
                         ),
                       ),
                       child: _EmojiAutoToggle(
@@ -146,7 +149,7 @@ class _EmojiSelectNeutralPageState extends State<EmojiSelectNeutralPage2> {
                                 const NeutralReasonPage2(
                                   firstAsset: 'assets/icons/First_Yellow2.png',
                                   secondAsset: 'assets/icons/Sec_Yellow2.png',
-                                  highlightWord: 'เบื่อ',
+                                  highlightWord: 'สับสน',
                                 ),
                               ),
                               child: _EmojiAutoToggle(
@@ -169,7 +172,7 @@ class _EmojiSelectNeutralPageState extends State<EmojiSelectNeutralPage2> {
                                 const NeutralReasonPage2(
                                   firstAsset: 'assets/icons/First_Yellow3.png',
                                   secondAsset: 'assets/icons/Sec_Yellow3.png',
-                                  highlightWord: 'สับสน',
+                                  highlightWord: 'เหนื่อย',
                                 ),
                               ),
                               child: _EmojiAutoToggle(
@@ -224,8 +227,9 @@ class _EmojiAutoToggle extends StatelessWidget {
       switchInCurve: Curves.easeOutQuad,
       switchOutCurve: Curves.easeInQuad,
       transitionBuilder: (child, animation) {
-        final scale = Tween<double>(begin: 0.92, end: 1.0)
-            .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack));
+        final scale = Tween<double>(begin: 0.92, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+        );
         return FadeTransition(
           opacity: animation,
           child: ScaleTransition(scale: scale, child: child),
@@ -271,9 +275,14 @@ Route<Map<String, dynamic>> _neutralRoute(Widget page) {
     reverseTransitionDuration: const Duration(milliseconds: 350),
     pageBuilder: (_, __, ___) => page,
     transitionsBuilder: (_, animation, __, child) {
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-      final slide = Tween<Offset>(begin: const Offset(0.06, 0.02), end: Offset.zero)
-          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+      final fade = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
+      final slide = Tween<Offset>(
+        begin: const Offset(0.06, 0.02),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
       return FadeTransition(
         opacity: fade,
         child: SlideTransition(position: slide, child: child),

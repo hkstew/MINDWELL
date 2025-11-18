@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'travel_game_page.dart';
 
 class HowToPlayPage extends StatefulWidget {
   const HowToPlayPage({super.key});
@@ -23,13 +22,13 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
       title: 'NPC ที่ต้องการกำลังใจ',
       image: 'assets/images/npc.png',
       description:
-          'NPC จะสุ่มเกิดตามทางต่างๆ หากคุณนำกำลังใจมอบให้ เขาจะให้สิ่งตอบแทนที่คุ้มค่า',
+          'NPC จะสุ่มเกิดตามทางต่างๆ หากคุณนำกำลังใจที่เก็บได้เป็นจำนวน 100 หัวใจมามอบให้เขา คุณจะได้รับการปลดล็อคสกินชุดเสื้อผ้าแบบสุ่ม',
     ),
     _HowToItem(
       title: 'ปีศาจ',
       image: 'assets/images/mon1.png',
       description:
-          'ปีศาจความโกรธและปีศาจความเศร้าจะคอยไล่ล่าคุณ แต่หากมันเข้ามาใกล้ลังเลใจของเป้าฟองสบู่ในจิตใจ ระวังอย่าให้ความเครียดและความเศร้าพรากกำลังใจไปจากคุณ',
+          'ปีศาจความโกรธและปีศาจความเศร้าจะคอยไล่ล่าคุณ ระวังอย่าให้ความเครียดและความเศร้าพรากกำลังใจไปจากคุณ',
     ),
   ];
 
@@ -37,11 +36,8 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
     if (_pageIndex < _items.length - 1) {
       setState(() => _pageIndex++);
     } else {
-      // เริ่มเกมจริง
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const TravelGamePage()),
-      );
+      // ⭐ สำคัญ: ปิดหน้าสอนกลับไป TravelGamePage
+      Navigator.pop(context, true);
     }
   }
 
@@ -60,19 +56,16 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
       body: SafeArea(
         child: Stack(
           children: [
-            // พื้นหลังจาง ๆ ให้เห็นเกมด้านหลัง (ใช้รูปแผนที่เดียวกับในเกม)
             Positioned.fill(
               child: Image.asset(
                 'assets/images/travelin.jpg',
                 fit: BoxFit.cover,
               ),
             ),
-            // เลเยอร์มืดนิด ๆ
             Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.35),
-              ),
+              child: Container(color: Colors.black.withOpacity(0.35)),
             ),
+
             Column(
               children: [
                 const SizedBox(height: 40),
@@ -85,7 +78,7 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // การ์ดสีน้ำตาล
+
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 28),
                   padding:
@@ -134,9 +127,9 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
                     ],
                   ),
                 ),
+
                 const SizedBox(height: 16),
 
-                // จุดสถานะหน้า ●●●
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(_items.length, (i) {
@@ -156,29 +149,26 @@ class _HowToPlayPageState extends State<HowToPlayPage> {
 
                 const Spacer(),
 
-                // ปุ่มด้านล่าง
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ปุ่มย้อนกลับ (แสดงเฉพาะหน้า 2,3)
                       if (_pageIndex > 0)
-                        _brownButton(
-                          text: 'ย้อนกลับ',
-                          onTap: _back,
-                        )
+                        _brownButton(text: 'ย้อนกลับ', onTap: _back)
                       else
-                        const SizedBox(width: 120), // เว้นที่ให้บาลานซ์
+                        const SizedBox(width: 120),
 
                       _brownButton(
-                        text: _pageIndex == _items.length - 1 ? 'ไปต่อ' : 'ไปต่อ',
+                        text: _pageIndex == _items.length - 1
+                            ? 'เข้าใจแล้ว'
+                            : 'ถัดไป',
                         onTap: _next,
                       ),
                     ],
                   ),
-                )
+                ),
               ],
             ),
           ],
@@ -216,6 +206,7 @@ class _HowToItem {
   final String title;
   final String image;
   final String description;
+
   const _HowToItem({
     required this.title,
     required this.image,

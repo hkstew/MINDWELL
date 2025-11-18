@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-// ไม่ต้อง import select page / home_page ที่นี่ เพื่อเลี่ยงวงจรอ้างอิง
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:video_player/video_player.dart';
 
 class BadReasonPage2 extends StatefulWidget {
   const BadReasonPage2({
     super.key,
     required this.firstAsset,
     required this.secondAsset,
-    required this.highlightWord, // เช่น "เศร้า" / "กังวล" / "โกรธ \\ เครียด"
+    required this.highlightWord,
     this.backgroundColor = const Color(0xFF212121),
     this.emojiSize = 190,
     this.togglePeriod = const Duration(milliseconds: 1900),
@@ -38,13 +39,49 @@ class _BadReasonPage2State extends State<BadReasonPage2> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
 
+  DateTime selectedDate = DateTime.now();
+  TimeOfDay selectedTime = TimeOfDay.now();
+
+  VideoPlayerController? _videoController;
+
   @override
   void initState() {
     super.initState();
+
+    initializeDateFormatting('th_TH');
+
     _timer = Timer.periodic(widget.togglePeriod, (_) {
       if (!mounted) return;
       setState(() => _second = !_second);
     });
+
+    _loadVideo();
+  }
+
+  // ---------------------------------------------------
+  // โหลดวิดีโอตามอารมณ์
+  // ---------------------------------------------------
+  void _loadVideo() {
+    String file = "assets/videos/bad1.mp4"; // default
+
+    switch (widget.highlightWord) {
+      case "เศร้า":
+        file = "assets/videos/bad1.mp4";
+        break;
+      case "กังวล":
+        file = "assets/videos/bad2.mp4";
+        break;
+      case "โกรธ / เครียด":
+        file = "assets/videos/bad3.mp4";
+        break;
+    }
+
+    _videoController = VideoPlayerController.asset(file)
+      ..initialize().then((_) {
+        _videoController!.setLooping(true);
+        _videoController!.play();
+        setState(() {});
+      });
   }
 
   @override
@@ -52,39 +89,71 @@ class _BadReasonPage2State extends State<BadReasonPage2> {
     _timer?.cancel();
     _controller.dispose();
     _focus.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
+  // ----------------------------
+  // PICK DATE
+  // ----------------------------
+  Future<void> _pickDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2023),
+      lastDate: DateTime(2035),
+      locale: const Locale("th", "TH"),
+    );
+
+    if (date != null) {
+      setState(() => selectedDate = date);
+    }
+  }
+
+  // ----------------------------
+  // PICK TIME
+  // ----------------------------
+  Future<void> _pickTime() async {
+    final time = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+    );
+
+    if (time != null) {
+      setState(() => selectedTime = time);
+    }
+  }
+
+  String _formatDate(DateTime d) =>
+      DateFormat("d MMM yy", "th_TH").format(d);
+
+  String _formatTime(TimeOfDay t) {
+    final dt = DateTime(2024, 1, 1, t.hour, t.minute);
+    return DateFormat("HH:mm", "th_TH").format(dt);
+  }
+
   void _submit() {
-    if (_submitting) return; // กันกดรัว
     final text = _controller.text.trim();
 
-    _focus.unfocus();
+    final combinedDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
 
-    if (text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกข้อความก่อนส่ง')),
-      );
-      return;
-    }
-
-    setState(() => _submitting = true);
-    widget.onSubmit?.call(text);
-
-    // ✅ ใช้ post-frame เพื่อเลี่ยง !_debugLocked เวลา pop ระหว่าง frame เดียวกับ gesture
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).pop(<String, dynamic>{
-        'text': text,
-        'subEmotion': widget.highlightWord, // ส่งชื่ออารมณ์ย่อยกลับไปโฮม
-      });
+    Navigator.of(context).pop({
+      'text': text,
+      'subEmotion': widget.highlightWord,
+      'dateTime': combinedDateTime,
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    const redHi = Color(0xFFFF7B7B); // สีไฮไลต์ข้อความ
-    const arrowFill = Color(0xFFFF6B6B); // สีปุ่มลูกศร
+    const redHi = Color(0xFFFF7B7B);
+    const arrowFill = Color(0xFFFF6B6B);
     final arrowStroke = Colors.black.withOpacity(0.7);
 
     return Scaffold(
@@ -92,7 +161,7 @@ class _BadReasonPage2State extends State<BadReasonPage2> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Back
+            // BACK BUTTON
             Positioned(
               top: 8,
               left: 8,
@@ -112,13 +181,7 @@ class _BadReasonPage2State extends State<BadReasonPage2> {
                       ),
                     ],
                   ),
-                  alignment: Alignment.center,
-                  child: Image.asset(
-                    'assets/icons/back_arrow.png',
-                    width: 22,
-                    height: 22,
-                    fit: BoxFit.contain,
-                  ),
+                  child: Image.asset('assets/icons/back_arrow.png', width: 22),
                 ),
               ),
             ),
@@ -128,40 +191,24 @@ class _BadReasonPage2State extends State<BadReasonPage2> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 28, left: 20, right: 20),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Emoji auto toggle
                     AnimatedSwitcher(
                       duration: widget.switchDuration,
-                      switchInCurve: Curves.easeOutQuad,
-                      switchOutCurve: Curves.easeInQuad,
-                      transitionBuilder: (child, animation) {
-                        final scale = Tween<double>(begin: 0.92, end: 1.0)
-                            .animate(CurvedAnimation(
-                                parent: animation, curve: Curves.easeOutBack));
-                        return FadeTransition(
-                          opacity: animation,
-                          child: ScaleTransition(scale: scale, child: child),
-                        );
-                      },
                       child: Image.asset(
                         _second ? widget.secondAsset : widget.firstAsset,
                         key: ValueKey(_second),
                         width: widget.emojiSize,
-                        height: widget.emojiSize,
-                        fit: BoxFit.contain,
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Prompt
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: 'บอกเราได้มั้ยทำไมคุณถึงรู้สึก ',
+                            text: "บอกเราได้มั้ยทำไมคุณถึงรู้สึก ",
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontSize: 16,
@@ -182,78 +229,104 @@ class _BadReasonPage2State extends State<BadReasonPage2> {
 
                     const SizedBox(height: 14),
 
-                    // Text box + arrow button
+                    // TEXT FIELD
                     Stack(
                       children: [
                         Container(
-                          width: double.infinity,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: const Color(0xFFDADADA),
                             borderRadius: BorderRadius.circular(28),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
                           ),
                           child: TextField(
                             controller: _controller,
                             focusNode: _focus,
                             maxLines: 6,
                             minLines: 5,
-                            enabled: !_submitting,
-                            style: GoogleFonts.poppins(
-                              color: Colors.black87,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: GoogleFonts.poppins(fontSize: 16),
                             decoration: InputDecoration(
                               border: InputBorder.none,
-                              hintText: 'พิมพ์ความคิดเห็นของคุณที่นี่...',
+                              hintText: "พิมพ์ความคิดเห็นของคุณที่นี่...",
                               hintStyle: GoogleFonts.poppins(
-                                color: Colors.black.withOpacity(0.45),
+                                color: Colors.black54,
                                 fontSize: 16,
-                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
                         ),
+
                         Positioned(
                           right: -4,
                           bottom: -6,
                           child: GestureDetector(
                             onTap: _submitting ? null : _submit,
-                            child: Opacity(
-                              opacity: _submitting ? 0.6 : 1,
-                              child: Container(
-                                width: 64,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  color: arrowFill,
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: arrowStroke, width: 4),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.35),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_forward,
-                                  size: 28,
+                            child: Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: arrowFill,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: arrowStroke,
+                                  width: 4,
                                 ),
                               ),
+                              child: const Icon(Icons.arrow_forward,
+                                  size: 28, color: Colors.black),
                             ),
                           ),
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 22),
+
+                    // DATE + TIME PICKER
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: _pickDate,
+                          child: _box(_formatDate(selectedDate)),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: _pickTime,
+                          child: _box("${_formatTime(selectedTime)} น."),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () async {
+                            await _pickDate();
+                            await _pickTime();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: _circle(),
+                            child: const Icon(
+                              Icons.calendar_month,
+                              size: 32,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 26),
+
+                    // -------------------------------------------------
+                    // วิดีโอแสดงอารมณ์ด้านล่าง
+                    // -------------------------------------------------
+                    if (_videoController?.value.isInitialized ?? false)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: SizedBox(
+                          height: 150,
+                          width: 150,
+                          child: VideoPlayer(_videoController!),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -263,4 +336,25 @@ class _BadReasonPage2State extends State<BadReasonPage2> {
       ),
     );
   }
+
+  // UI HELPERS
+  Widget _box(String text) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFDADADA),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Text(
+          text,
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+
+  BoxDecoration _circle() => BoxDecoration(
+        color: const Color(0xFFDADADA),
+        shape: BoxShape.circle,
+      );
 }

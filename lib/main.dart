@@ -1,32 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // ✅ เพิ่ม
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ ใช้เช็กสถานะผู้ใช้
+import 'package:firebase_auth/firebase_auth.dart'; // ใช้เช็กสถานะผู้ใช้
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:my_new_app/analyst_page.dart';
 import 'login_page.dart';
 import 'register_page.dart';
 import 'success_page.dart';
-import 'splash_loading_page.dart'; // ✅ หน้า Splash ก่อนเข้าโฮม
+import 'splash_loading_page.dart';
 import 'home_page.dart';
 import 'emotion_data_store.dart';
+import 'package:home_widget/home_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  HomeWidget.setAppGroupId("group.emotion.widget");
+  HomeWidget.registerBackgroundCallback((data) async {
+    // สามารถสั่ง update widget เบื้องหลังได้
+  });
   await Firebase.initializeApp();
   await Hive.initFlutter();
   await EmotionDataStore.init();
 
-  // ✅ ตรวจสอบผู้ใช้ที่ล็อกอินอยู่ใน Firebase
   final currentUser = FirebaseAuth.instance.currentUser;
 
-  // ✅ ถ้ามีผู้ใช้ที่ล็อกอินอยู่ → โหลดกล่อง Hive ของคนนั้นโดยตรง
   if (currentUser != null) {
-    await EmotionDataStore.switchUserBox(); // 🔹 โหลดกล่องข้อมูลของ user นั้นก่อนเปิดแอป
+    await EmotionDataStore.switchUserBox();
   }
 
-  runApp(MyApp(
-    initialRoute: currentUser != null ? '/splash' : '/', // ถ้ามีผู้ใช้ → ไป splash ก่อนเข้าโฮม
-  ));
+  runApp(MyApp(initialRoute: currentUser != null ? '/splash' : '/'));
 }
 
 class MyApp extends StatelessWidget {
@@ -38,16 +41,22 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MindWell',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        fontFamily: 'Poppins',
-      ),
+
+      // ✅ เพิ่ม Localizations ให้ DatePicker ใช้งานได้ (สำคัญ!)
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('th'), Locale('en')],
+
+      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Poppins'),
       initialRoute: initialRoute,
       routes: {
         '/': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/success': (context) => const SuccessPage(),
-        '/splash': (context) => const SplashLoadingPage(), // ✅ หน้าโหลดก่อนเข้าโฮม
+        '/splash': (context) => const SplashLoadingPage(),
         '/home': (context) => const HomePage(),
       },
     );
